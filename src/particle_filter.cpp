@@ -19,6 +19,7 @@
 #include "helper_functions.h"
 
 #define EPS 0.00001
+#define DEBUG false
 
 using std::string;
 using std::vector;
@@ -72,7 +73,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
   std::normal_distribution<double> dist_y(0, std_pos[1]);
   std::normal_distribution<double> dist_theta(0, std_pos[2]);
 
-  for (Particle p : particles) {
+  for (Particle& p : particles) {
     if (fabs(yaw_rate) < EPS) {
       // Yaw didnt change
       p.x += velocity * delta_t * cos(p.theta);
@@ -105,7 +106,7 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
    *   during the updateWeights phase.
    */
 
-  for (LandmarkObs observation : observations) {
+  for (LandmarkObs& observation : observations) {
 
     double minPredDist = std::numeric_limits<double>::max();
     int minPredId = -1;
@@ -146,7 +147,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   double stdLmRange_2 = std_landmark[0]*std_landmark[0];
   double stdLmBearing_2 = std_landmark[1]*std_landmark[1];
 
-  for (Particle p : particles) {
+  for (Particle& p : particles) {
     // Find landmarks in particles range
     double sensor_range_2 = sensor_range * sensor_range;
     vector<LandmarkObs> inRangeLandmarks;
@@ -170,6 +171,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     dataAssociation(inRangeLandmarks, mappedObservations);
 
     // Update weight
+    if (DEBUG)
+      std::cout << p.id << ": old_weight=" << p.weight;
     p.weight = 1.0;
     for (LandmarkObs obs : mappedObservations) {
       // Find associated landmark
@@ -187,8 +190,15 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       double dY = obs.y - associated_lm.y;
       double lm_weight = ( exp( -( dX*dX/(2*stdLmRange_2) + (dY*dY/(2*stdLmBearing_2)) ) /
                              (2*M_PI*stdLmRange_Bearing)) );
-      p.weight *= lm_weight;
+      if (lm_weight == 0)
+        p.weight *= EPS;
+//        continue;
+      else
+        p.weight *= lm_weight;
     }
+
+    if (DEBUG)
+      std::cout << "; new_weight=" << p.weight << std::endl;
   }
 
 }
@@ -226,7 +236,14 @@ void ParticleFilter::resample() {
       beta -= particles[index].weight;
       index = (index + 1) % num_particles;
     }
-    resampledParticles.push_back(particles[index]);
+    if (DEBUG)
+      std::cout << "chosen particle: " << particles[index].id << "(w=" << particles[index].weight << ")" << std::endl;
+    Particle new_p = {.id=i,
+                      .x = particles[index].x,
+                      .y = particles[index].y,
+                      .theta = particles[index].theta,
+                      .weight = particles[index].weight};
+    resampledParticles.push_back(new_p);
   }
 
   particles = resampledParticles;
