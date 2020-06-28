@@ -1,3 +1,5 @@
+.*
+!.gitignore
 reviewer
 submission_instructions.*
 build

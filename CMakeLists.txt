@@ -1,4 +1,4 @@
-project(PARTICLE_FILTER)
+project(KidnappedCar)
 
 cmake_minimum_required (VERSION 3.5)
 
